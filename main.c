@@ -16,10 +16,15 @@ int main(void) {
 	BLAKE2BContext ctx;
 	unsigned char d[64];
 	unsigned char r[64];
-	unsigned int l;
+	int s = 0;
 
-	blake2b_Begin(&ctx, 64, d, 64);
-	BLAKE2B_End(&ctx, r, &l, 64);
+	s = blake2b_Begin(&ctx, 64, d, 64);
+	printf("init: %d\n", s);
+	s = BLAKE2B_Update(&ctx, d, 1);
+	printf("update: %d\n", s);
+	s = BLAKE2B_End(&ctx, r, NULL, 64);
+	printf("end: %d\n", s);
+
 	print_vector(r, 64);
 	
 

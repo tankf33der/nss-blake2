@@ -158,16 +158,16 @@ BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
 {
     /* Nothing to do if there's nothing. */
     if (inlen == 0) {
-        return 0;
+        return 1;
     }
 
     if (!ctx || !in) {
-        return 0;
+        return 10;
     }
 
     /* Is this a reused context? */
     if (ctx->f) {
-        return 0;
+        return 20;
     }
 
     size_t left = ctx->buflen;
@@ -211,17 +211,17 @@ BLAKE2B_End(BLAKE2BContext* ctx, unsigned char* out,
 
     /* Argument checks */
     if (!ctx || !out) {
-        return 0;
+        return 10;
     }
 
     /* Sanity check against outlen in context. */
     if (ctx->outlen < outlen) {
-        return 0;
+        return 20;
     }
 
     /* Is this a reused context? */
     if (ctx->f != 0) {
-        return 0;
+        return 30;
     }
 
     /* Process the remaining data from ctx->buf (padded with 0). */
