@@ -6,25 +6,7 @@
 
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 
-#define BLAKE2B_BLOCK_LENGTH 128 
-#define BLAKE2B512_LENGTH 64 
-
-
-struct Blake2bContextStr {
-    uint64_t h[8];                     /* chained state */
-    uint64_t t[2];                     /* total number of bytes */
-    uint64_t f;                        /* last block flag */
-    uint8_t buf[BLAKE2B_BLOCK_LENGTH]; /* input buffer */
-    size_t buflen;                     /* size of remaining bytes in buf */
-    size_t outlen;                     /* digest size */
-};
-typedef struct Blake2bContextStr BLAKE2BContext;
-
-
-static int
-BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
-               unsigned int inlen);
-
+#include "nss-blake2.h"
 
 static const uint64_t nss_iv[8] = {
     0x6a09e667f3bcc908ULL, 0xbb67ae8584caa73bULL, 0x3c6ef372fe94f82bULL,
@@ -220,7 +202,7 @@ BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
     return 1;
 }
 
-int
+static int
 BLAKE2B_End(BLAKE2BContext* ctx, unsigned char* out,
             unsigned int* digestLen, size_t maxDigestLen)
 {
