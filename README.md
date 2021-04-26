@@ -4,4 +4,4 @@ Have fun!
 
 FAILED
 ======
-Impossible to use, not for human, go away.
+Impossible to use library, not for human, go away.
