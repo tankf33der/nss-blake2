@@ -32,13 +32,10 @@ int main(void) {
  	
  	ctx = PK11_CreateDigestContext(SEC_OID_SHA256);
  	PR_ASSERT(ctx != NULL);
- 	printf("1\n");
 
  	status = PK11_DigestBegin(ctx);
- 	printf("2\n");
  	PR_ASSERT(status == SECSuccess);
 
-	printf("3\n");
  	PK11_DigestFinal(ctx, r, &len, sizeof r);
 	print_vector(r, sizeof r); 	
 	PK11_DestroyContext(ctx, PR_TRUE);

@@ -1,8 +1,14 @@
+#include <stdlib.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
+
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 
 #define BLAKE2B_BLOCK_LENGTH 128 
+#define BLAKE2B512_LENGTH 64 
+
 
 struct Blake2bContextStr {
     uint64_t h[8];                     /* chained state */
@@ -13,6 +19,11 @@ struct Blake2bContextStr {
     size_t outlen;                     /* digest size */
 };
 typedef struct Blake2bContextStr BLAKE2BContext;
+
+
+static int
+BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
+               unsigned int inlen);
 
 
 static const uint64_t nss_iv[8] = {
@@ -44,7 +55,7 @@ static const uint8_t nss_sigma[12][16] = {
  * This function increments the blake2b ctx counter.
  */
 void
-nss_blake2b_IncrementCounter(BLAKE2BContext* ctx, const uint64_t inc)
+blake2b_IncrementCounter(BLAKE2BContext* ctx, const uint64_t inc)
 {
     ctx->t[0] += inc;
     ctx->t[1] += ctx->t[0] < inc;
@@ -78,7 +89,7 @@ static uint32_t rotl32(uint32_t x, uint32_t n) { return (x << n) ^ (x >> (32 - n
     NSSG(v[3], v[4], v[9], v[14], m[nss_sigma[i][14]], m[nss_sigma[i][15]])
 
 void
-nss_blake2b_Compress(BLAKE2BContext* ctx, const uint8_t* block)
+blake2b_Compress(BLAKE2BContext* ctx, const uint8_t* block)
 {
     size_t i;
     uint64_t v[16], m[16];
@@ -108,4 +119,144 @@ nss_blake2b_Compress(BLAKE2BContext* ctx, const uint8_t* block)
     for (i = 0; i < 8; i++) {
         ctx->h[i] ^= v[i] ^ v[i + 8];
     }
+}
+
+static int
+blake2b_Begin(BLAKE2BContext* ctx, uint8_t outlen, const uint8_t* key,
+              size_t keylen)
+{
+    if (!ctx) {
+        goto failure_noclean;
+    }
+    if (outlen == 0 || outlen > 64) {
+        goto failure;
+    }
+    if (key && keylen > 64) {
+        goto failure;
+    }
+    /* Note: key can be null if it's unkeyed. */
+    if ((key == NULL && keylen > 0) || keylen > 64 ||
+        (key != NULL && keylen == 0)) {
+        goto failure;
+    }
+
+    /* Mix key size(keylen) and desired hash length(outlen) into h0 */
+    uint64_t param = outlen ^ (keylen << 8) ^ (1 << 16) ^ (1 << 24);
+    memcpy(ctx->h, nss_iv, 8 * 8);
+    ctx->h[0] ^= param;
+    ctx->outlen = outlen;
+
+    /* This updates the context for only the keyed version */
+    if (keylen > 0 && keylen <= 64 && key) {
+        uint8_t block[BLAKE2B_BLOCK_LENGTH] = { 0 };
+        memcpy(block, key, keylen);
+        BLAKE2B_Update(ctx, block, BLAKE2B_BLOCK_LENGTH);
+        memset(block, 0, BLAKE2B_BLOCK_LENGTH);
+    }
+
+    return 1;
+
+failure:
+    memset(ctx, 0, sizeof(*ctx));
+failure_noclean:
+    return 0;
+}
+
+static void
+blake2b_IncrementCompress(BLAKE2BContext* ctx, size_t blockLength,
+                          const unsigned char* input)
+{
+    blake2b_IncrementCounter(ctx, blockLength);
+    blake2b_Compress(ctx, input);
+}
+
+static int
+BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
+               unsigned int inlen)
+{
+    /* Nothing to do if there's nothing. */
+    if (inlen == 0) {
+        return 0;
+    }
+
+    if (!ctx || !in) {
+        return 0;
+    }
+
+    /* Is this a reused context? */
+    if (ctx->f) {
+        return 0;
+    }
+
+    size_t left = ctx->buflen;
+    assert(left <= BLAKE2B_BLOCK_LENGTH);
+    size_t fill = BLAKE2B_BLOCK_LENGTH - left;
+
+    if (inlen > fill) {
+        if (ctx->buflen) {
+            /* There's some remaining data in ctx->buf that we have to prepend
+             * to in. */
+            memcpy(ctx->buf + left, in, fill);
+            ctx->buflen = 0;
+            blake2b_IncrementCompress(ctx, BLAKE2B_BLOCK_LENGTH, ctx->buf);
+            in += fill;
+            inlen -= fill;
+        }
+        while (inlen > BLAKE2B_BLOCK_LENGTH) {
+            blake2b_IncrementCompress(ctx, BLAKE2B_BLOCK_LENGTH, in);
+            in += BLAKE2B_BLOCK_LENGTH;
+            inlen -= BLAKE2B_BLOCK_LENGTH;
+        }
+    }
+
+    /* Store the remaining data from in in ctx->buf to process later.
+     * Note that ctx->buflen can be BLAKE2B_BLOCK_LENGTH. We can't process that
+     * here because we have to update ctx->f before compressing the last block.
+     */
+    assert(inlen <= BLAKE2B_BLOCK_LENGTH);
+    memcpy(ctx->buf + ctx->buflen, in, inlen);
+    ctx->buflen += inlen;
+
+    return 1;
+}
+
+int
+BLAKE2B_End(BLAKE2BContext* ctx, unsigned char* out,
+            unsigned int* digestLen, size_t maxDigestLen)
+{
+    size_t i;
+    unsigned int outlen = min(BLAKE2B512_LENGTH, maxDigestLen);
+
+    /* Argument checks */
+    if (!ctx || !out) {
+        return 0;
+    }
+
+    /* Sanity check against outlen in context. */
+    if (ctx->outlen < outlen) {
+        return 0;
+    }
+
+    /* Is this a reused context? */
+    if (ctx->f != 0) {
+        return 0;
+    }
+
+    /* Process the remaining data from ctx->buf (padded with 0). */
+    blake2b_IncrementCounter(ctx, ctx->buflen);
+    /* BLAKE2B_BLOCK_LENGTH - ctx->buflen can be 0. */
+    memset(ctx->buf + ctx->buflen, 0, BLAKE2B_BLOCK_LENGTH - ctx->buflen);
+    ctx->f = UINT64_MAX;
+    blake2b_Compress(ctx, ctx->buf);
+
+    /* Write out the blake2b context(ctx). */
+    for (i = 0; i < outlen; ++i) {
+        out[i] = ctx->h[i / 8] >> ((i % 8) * 8);
+    }
+
+    if (digestLen) {
+        *digestLen = outlen;
+    }
+
+    return 1;
 }
