@@ -103,7 +103,7 @@ blake2b_Compress(BLAKE2BContext* ctx, const uint8_t* block)
     }
 }
 
-static int
+int
 blake2b_Begin(BLAKE2BContext* ctx, uint8_t outlen, const uint8_t* key,
               size_t keylen)
 {
@@ -152,7 +152,7 @@ blake2b_IncrementCompress(BLAKE2BContext* ctx, size_t blockLength,
     blake2b_Compress(ctx, input);
 }
 
-static int
+int
 BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
                unsigned int inlen)
 {
@@ -202,7 +202,7 @@ BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
     return 1;
 }
 
-static int
+int
 BLAKE2B_End(BLAKE2BContext* ctx, unsigned char* out,
             unsigned int* digestLen, size_t maxDigestLen)
 {

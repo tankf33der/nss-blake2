@@ -1,3 +1,9 @@
+#include <stdlib.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+#include <assert.h>
+
 #define BLAKE2B_BLOCK_LENGTH 128 
 #define BLAKE2B512_LENGTH 64 
 
@@ -12,12 +18,12 @@ struct Blake2bContextStr {
 };
 typedef struct Blake2bContextStr BLAKE2BContext;
 
-static int
+int
 blake2b_Begin(BLAKE2BContext* ctx, uint8_t outlen, const uint8_t* key,
               size_t keylen);
-static int
+int
 BLAKE2B_Update(BLAKE2BContext* ctx, const unsigned char* in,
                unsigned int inlen);
-static int
+int
 BLAKE2B_End(BLAKE2BContext* ctx, unsigned char* out,
             unsigned int* digestLen, size_t maxDigestLen);
