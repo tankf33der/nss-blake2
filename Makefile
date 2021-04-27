@@ -1,6 +1,4 @@
 all:
-	gcc -Wall -Wextra main.c nss-blake2.c && ./a.out
-nss:
-	gcc -Wall -Wextra example.c -lnss3 -I /usr/include/nss -I /usr/include/nspr && ./a.out
+	gcc -Wall -Wextra -I/usr/include/nspr -I/home/mpech/dist/private/nss/ -I/home/mpech/dist/public/nss main.c && ./a.out
 clean:
 	rm -rf *.o *.out
