@@ -13,14 +13,13 @@ void print_vector(const uint8_t *buf, size_t size)
     printf(":\n");
 }
 
-
 int main(void) {
 	struct Blake2bContextStr ctx;
 	unsigned char d[64];
 	unsigned char r[64];
 	int s = 0;
 
-	s = BLAKE2B_Begin(&ctx);
+	s = BLAKE2B_Hash(d, r);
 	printf("init: %d\n", s);
 	// s = BLAKE2B_Update(&ctx, d, 1);
 	// printf("update: %d\n", s);
